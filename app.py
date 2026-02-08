@@ -13,7 +13,7 @@ IMG_SIZE = (224, 224)  # Your model was trained with 224x224
 CLASS_NAMES = ['good', 'patches', 'rolled_pits', 'scratches', 'waist_folding']
 
 # *** REPLACE WITH YOUR GOOGLE DRIVE FILE ID ***
-GOOGLE_DRIVE_FILE_ID = "YOUR_FILE_ID_HERE"
+GOOGLE_DRIVE_FILE_ID = "1soeqMV4kO9EZg6JMny-c5CYEhf5yIB01"
 MODEL_PATH = "disc_defect_model.h5"
 
 @st.cache_resource
