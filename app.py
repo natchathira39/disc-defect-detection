@@ -29,7 +29,7 @@ def download_model():
 def load_model():
     """Load the trained model"""
     model_file = download_model()
-    model = tf.keras.models.load_model(model_file)
+    model = tf.keras.models.load_model(model_file,compile=False)
     return model
 
 def preprocess_image(image):
