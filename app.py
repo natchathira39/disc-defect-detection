@@ -10,13 +10,11 @@ st.set_page_config(page_title="Disc Defect Detection", page_icon="🔧", layout=
 IMG_SIZE = (224, 224)
 CLASS_NAMES = ['good', 'patches', 'rolled_pits', 'scratches', 'waist_folding']
 
-# *** UPDATE WITH YOUR NEW FILE ID ***
 GOOGLE_DRIVE_FILE_ID = "11eFwJ0gLQMYvOu0bee6nwi2sMCtDxWDz"
-MODEL_PATH = "disc_defect_model.keras"  # Changed to .keras
+MODEL_PATH = "disc_defect_model.tflite"
 
 @st.cache_resource
 def download_model():
-    """Download model from Google Drive"""
     if not os.path.exists(MODEL_PATH):
         with st.spinner("📥 Downloading model..."):
             url = f"https://drive.google.com/uc?id={GOOGLE_DRIVE_FILE_ID}"
@@ -25,28 +23,39 @@ def download_model():
 
 @st.cache_resource
 def load_model():
-    """Load the trained model"""
     model_file = download_model()
-    model = tf.keras.models.load_model(model_file)
-    return model
+    interpreter = tf.lite.Interpreter(model_path=model_file)
+    interpreter.allocate_tensors()
+    return interpreter
 
 def preprocess_image(image):
-    """Preprocess image for model"""
     if image.mode != 'RGB':
         image = image.convert('RGB')
     image = image.resize(IMG_SIZE)
-    img_array = np.array(image) / 255.0
+    img_array = np.array(image, dtype=np.float32) / 255.0
     img_array = np.expand_dims(img_array, axis=0)
     return img_array
 
-def predict_defect(image, model):
-    """Make prediction"""
+def predict_defect(image, interpreter):
     processed_image = preprocess_image(image)
-    predictions = model.predict(processed_image, verbose=0)
-    predicted_idx = np.argmax(predictions[0])
+    
+    # Get input/output details
+    input_details = interpreter.get_input_details()
+    output_details = interpreter.get_output_details()
+    
+    # Set input tensor
+    interpreter.set_tensor(input_details[0]['index'], processed_image)
+    
+    # Run inference
+    interpreter.invoke()
+    
+    # Get output
+    predictions = interpreter.get_tensor(output_details[0]['index'])[0]
+    
+    predicted_idx = np.argmax(predictions)
     predicted_class = CLASS_NAMES[predicted_idx]
-    confidence = predictions[0][predicted_idx] * 100
-    return predicted_class, confidence, predictions[0] * 100
+    confidence = predictions[predicted_idx] * 100
+    return predicted_class, confidence, predictions * 100
 
 st.title("🔧 Disc Defect Detection")
 st.write("Upload a disc image to detect defects")
@@ -72,10 +81,10 @@ if uploaded_file:
     
     with col2:
         st.subheader("Prediction")
-        model = load_model()
+        interpreter = load_model()
         
         with st.spinner("Analyzing..."):
-            predicted_class, confidence, all_probs = predict_defect(image, model)
+            predicted_class, confidence, all_probs = predict_defect(image, interpreter)
         
         if predicted_class == 'good':
             st.success(f"✅ **{predicted_class.upper()}**")
