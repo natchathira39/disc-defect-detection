@@ -22,9 +22,26 @@ def download_model():
             url = f"https://drive.google.com/uc?id={GOOGLE_DRIVE_FILE_ID}"
             gdown.download(url, MODEL_ZIP, quiet=False)
             
+            # Extract and find the actual model directory
             with zipfile.ZipFile(MODEL_ZIP, 'r') as zip_ref:
                 zip_ref.extractall('.')
             os.remove(MODEL_ZIP)
+            
+            # Debug: Check what was extracted
+            if os.path.exists(MODEL_DIR):
+                st.write(f"✅ Found {MODEL_DIR}")
+                # Check if saved_model.pb exists
+                if not os.path.exists(os.path.join(MODEL_DIR, 'saved_model.pb')):
+                    # Look for the actual model directory
+                    for item in os.listdir('.'):
+                        if os.path.isdir(item) and os.path.exists(os.path.join(item, 'saved_model.pb')):
+                            return item
+    
+    # Find the correct model directory
+    for item in os.listdir('.'):
+        if os.path.isdir(item) and os.path.exists(os.path.join(item, 'saved_model.pb')):
+            return item
+    
     return MODEL_DIR
 
 @st.cache_resource
