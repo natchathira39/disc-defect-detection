@@ -4,29 +4,33 @@ import numpy as np
 from PIL import Image
 import gdown
 import os
+import zipfile
 
 st.set_page_config(page_title="Disc Defect Detection", page_icon="🔧", layout="wide")
 
 IMG_SIZE = (224, 224)
 CLASS_NAMES = ['good', 'patches', 'rolled_pits', 'scratches', 'waist_folding']
 
-# Your .keras file ID
-GOOGLE_DRIVE_FILE_ID = "11eFwJ0gLQMYvOu0bee6nwi2sMCtDxWDz"
-MODEL_PATH = "disc_defect_model.keras"
+GOOGLE_DRIVE_FILE_ID = "1FUWdx1mJSY0P4cA4st5VBzQcCEEbq0Ap"
+MODEL_ZIP = "disc_model.zip"
+MODEL_DIR = "saved_model_dir"
 
 @st.cache_resource
 def download_model():
-    if not os.path.exists(MODEL_PATH):
+    if not os.path.exists(MODEL_DIR):
         with st.spinner("📥 Downloading model..."):
             url = f"https://drive.google.com/uc?id={GOOGLE_DRIVE_FILE_ID}"
-            gdown.download(url, MODEL_PATH, quiet=False)
-    return MODEL_PATH
+            gdown.download(url, MODEL_ZIP, quiet=False)
+            
+            with zipfile.ZipFile(MODEL_ZIP, 'r') as zip_ref:
+                zip_ref.extractall('.')
+            os.remove(MODEL_ZIP)
+    return MODEL_DIR
 
 @st.cache_resource
 def load_model():
-    model_file = download_model()
-    # Load with compile=False to avoid architecture issues
-    model = tf.keras.models.load_model(model_file, compile=False)
+    model_dir = download_model()
+    model = tf.saved_model.load(model_dir)
     return model
 
 def preprocess_image(image):
@@ -39,11 +43,11 @@ def preprocess_image(image):
 
 def predict_defect(image, model):
     processed_image = preprocess_image(image)
-    predictions = model.predict(processed_image, verbose=0)
-    predicted_idx = np.argmax(predictions[0])
+    predictions = model(processed_image).numpy()[0]
+    predicted_idx = np.argmax(predictions)
     predicted_class = CLASS_NAMES[predicted_idx]
-    confidence = predictions[0][predicted_idx] * 100
-    return predicted_class, confidence, predictions[0] * 100
+    confidence = predictions[predicted_idx] * 100
+    return predicted_class, confidence, predictions * 100
 
 st.title("🔧 Disc Defect Detection")
 st.write("Upload a disc image to detect defects")
